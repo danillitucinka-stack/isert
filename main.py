@@ -555,7 +555,11 @@ class TemperatureMonitor:
     Класс для мониторинга температуры системы.
     """
     def __init__(self):
-        self.sensors = psutil.sensors_temperatures()
+        try:
+            self.sensors = psutil.sensors_temperatures() if hasattr(psutil, 'sensors_temperatures') else {}
+        except Exception as e:
+            logging.error(f"Ошибка инициализации датчиков температуры: {e}")
+            self.sensors = {}
 
     def get_cpu_temp(self):
         """
