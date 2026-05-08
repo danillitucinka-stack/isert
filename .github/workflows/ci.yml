@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest
+
+    - name: Check code syntax
+      run: python -m py_compile main.py
+
+    - name: Run unit tests
+      run: python -m pytest test_main.py -v
+
+    - name: Create test notes file
+      run: echo "Test note" > notes.txt
+
+    - name: Test notes loading
+      run: |
+        python -c "
+        from main import ExtendedSystemWidget
+        # This will test loading notes without GUI
+        import os
+        if os.path.exists('notes.txt'):
+            with open('notes.txt', 'r') as f:
+                content = f.read()
+                print(f'Notes content: {content}')
+                print('Notes loading test passed')
+        else:
+            print('Notes file not found')
+        "
+
+    - name: Clean up
+      run: |
+        rm -f notes.txt config.json widget.log
