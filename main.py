@@ -214,7 +214,10 @@ class SystemWidget(QWidget):
         self.init_timers()
         self.init_tray()
         self.load_position()
-        self.apply_theme()
+        try:
+            self.apply_theme()
+        except Exception as e:
+            logging.error(f"Ошибка применения темы: {e}")
 
     def init_window(self):
         """
@@ -594,6 +597,10 @@ class ExtendedSystemWidget(SystemWidget):
         self.temp_monitor = TemperatureMonitor()
         self.init_extended_ui()
         self.init_extended_timers()
+        try:
+            self.apply_theme()
+        except Exception as e:
+            logging.error(f"Ошибка применения темы в ExtendedSystemWidget: {e}")
 
     def init_extended_ui(self):
         """
@@ -709,20 +716,27 @@ class ExtendedSystemWidget(SystemWidget):
 
         bar_style = f"QProgressBar {{ border: 1px solid {self.theme_color}; border-radius: 2px; text-align: center; color: {self.theme_color}; background: transparent; }} QProgressBar::chunk {{ background-color: {self.theme_color}; }}"
 
-        self.cpu_bar.setStyleSheet(bar_style)
-        self.ram_bar.setStyleSheet(bar_style)
+        if hasattr(self, 'cpu_bar'):
+            self.cpu_bar.setStyleSheet(bar_style)
+        if hasattr(self, 'ram_bar'):
+            self.ram_bar.setStyleSheet(bar_style)
 
-        self.cpu_label.setStyleSheet(f"color: {self.theme_color};")
-        self.ram_label.setStyleSheet(f"color: {self.theme_color};")
+        if hasattr(self, 'cpu_label'):
+            self.cpu_label.setStyleSheet(f"color: {self.theme_color};")
+        if hasattr(self, 'ram_label'):
+            self.ram_label.setStyleSheet(f"color: {self.theme_color};")
 
-        self.network_label.setStyleSheet(f"color: {self.theme_color};")
-        self.network_label.setFont(QFont(font_family, 9))
+        if hasattr(self, 'network_label'):
+            self.network_label.setStyleSheet(f"color: {self.theme_color};")
+            self.network_label.setFont(QFont(font_family, 9))
 
-        self.temp_label.setStyleSheet(f"color: {self.theme_color};")
-        self.temp_label.setFont(QFont(font_family, 9))
+        if hasattr(self, 'temp_label'):
+            self.temp_label.setStyleSheet(f"color: {self.theme_color};")
+            self.temp_label.setFont(QFont(font_family, 9))
 
-        self.history_label.setStyleSheet(f"color: {self.theme_color};")
-        self.history_label.setFont(QFont(font_family, 8))
+        if hasattr(self, 'history_label'):
+            self.history_label.setStyleSheet(f"color: {self.theme_color};")
+            self.history_label.setFont(QFont(font_family, 8))
 
     def contextMenuEvent(self, event):
         """
@@ -775,7 +789,10 @@ class ExtendedSystemWidget(SystemWidget):
         }
         if theme in theme_colors:
             self.theme_color = theme_colors[theme]
-            self.apply_theme()
+            try:
+                self.apply_theme()
+            except Exception as e:
+                logging.error(f"Ошибка смены темы: {e}")
 
 # Дополнительные утилитарные функции
 
