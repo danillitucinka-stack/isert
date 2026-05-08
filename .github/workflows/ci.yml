@@ -23,6 +23,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install pytest
+        pip install pyinstaller
 
     - name: Check code syntax
       run: python -m py_compile main.py
@@ -47,6 +48,15 @@ jobs:
         else:
             print('Notes file not found')
         "
+
+    - name: Build EXE
+      run: pyinstaller --noconsole --onefile --name "AuraWidget" --add-data "notes.txt;." main.py
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: AuraWidget-exe
+        path: dist/AuraWidget.exe
 
     - name: Clean up
       run: |
