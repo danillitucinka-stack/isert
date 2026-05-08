@@ -208,6 +208,7 @@ class SystemWidget(QWidget):
         self.config = Config()
         self.drag_position = None
         self.tray_icon = None
+        self.theme_color = '#00ffcc'
         self.init_window()
         self.init_ui()
         self.init_timers()
@@ -257,6 +258,7 @@ class SystemWidget(QWidget):
 
         # Подключение сигналов
         self.notes_edit.textChanged.connect(self.save_notes)
+        self.notes_edit.focusOutEvent = self.on_notes_focus_out
 
     def init_timers(self):
         """
@@ -307,7 +309,7 @@ class SystemWidget(QWidget):
         Применение темы из конфигурации.
         """
         font_family = self.config.get('font_family')
-        text_color = self.config.get('text_color')
+        text_color = self.theme_color
         alpha = self.config.get('background_alpha')
 
         # Стиль для часов
@@ -378,9 +380,7 @@ class SystemWidget(QWidget):
             logging.error(f"Ошибка загрузки заметок: {e}")
 
     def save_notes(self):
-        """
-        Сохранение заметок в файл.
-        """
+        # Сохранение заметок в файл
         if not self.config.get('auto_save_notes'):
             return
         try:
@@ -388,6 +388,11 @@ class SystemWidget(QWidget):
                 f.write(self.notes_edit.toPlainText())
         except Exception as e:
             logging.error(f"Ошибка сохранения заметок: {e}")
+
+    def on_notes_focus_out(self, event):
+        # Автосохранение при потере фокуса
+        self.save_notes()
+        QTextEdit.focusOutEvent(self.notes_edit, event)
 
     def save_position(self):
         """
@@ -594,22 +599,43 @@ class ExtendedSystemWidget(SystemWidget):
         """
         Инициализация расширенного интерфейса.
         """
+        # Полоски для CPU и RAM
+        self.cpu_label = QLabel("CPU:")
+        self.cpu_label.setFont(QFont(self.config.get('font_family'), 9))
+        self.layout.addWidget(self.cpu_label)
+
+        self.cpu_bar = QProgressBar()
+        self.cpu_bar.setRange(0, 100)
+        self.cpu_bar.setValue(0)
+        self.cpu_bar.setFixedHeight(15)
+        self.layout.addWidget(self.cpu_bar)
+
+        self.ram_label = QLabel("RAM:")
+        self.ram_label.setFont(QFont(self.config.get('font_family'), 9))
+        self.layout.addWidget(self.ram_label)
+
+        self.ram_bar = QProgressBar()
+        self.ram_bar.setRange(0, 100)
+        self.ram_bar.setValue(0)
+        self.ram_bar.setFixedHeight(15)
+        self.layout.addWidget(self.ram_bar)
+
         # Добавление метки для сети
-        self.network_label = QLabel("Network: 0 KB/s ↑ 0 KB/s ↓")
+        self.network_label = QLabel("Network: 0 KB/s ↓ 0 KB/s ↑")
         self.network_label.setFont(QFont(self.config.get('font_family'), 9))
-        self.network_label.setStyleSheet(f"color: {self.config.get('text_color')};")
+        self.network_label.setStyleSheet(f"color: {self.theme_color};")
         self.layout.addWidget(self.network_label)
 
         # Добавление метки для температуры
         self.temp_label = QLabel("Temp: N/A")
         self.temp_label.setFont(QFont(self.config.get('font_family'), 9))
-        self.temp_label.setStyleSheet(f"color: {self.config.get('text_color')};")
+        self.temp_label.setStyleSheet(f"color: {self.theme_color};")
         self.layout.addWidget(self.temp_label)
 
         # Добавление метки для истории
         self.history_label = QLabel("Avg CPU: 0% | Avg RAM: 0%")
         self.history_label.setFont(QFont(self.config.get('font_family'), 8))
-        self.history_label.setStyleSheet(f"color: {self.config.get('text_color')};")
+        self.history_label.setStyleSheet(f"color: {self.theme_color};")
         self.layout.addWidget(self.history_label)
 
     def init_extended_timers(self):
@@ -623,6 +649,10 @@ class ExtendedSystemWidget(SystemWidget):
         self.timer_temp = QTimer()
         self.timer_temp.timeout.connect(self.update_temperature)
         self.timer_temp.start(5000)  # Каждые 5 секунд
+
+        self.timer_notes_save = QTimer()
+        self.timer_notes_save.timeout.connect(self.save_notes)
+        self.timer_notes_save.start(30000)  # Автосохранение каждые 30 секунд
 
     def update_network(self):
         """
@@ -649,13 +679,15 @@ class ExtendedSystemWidget(SystemWidget):
 
     def update_stats(self):
         """
-        Переопределение метода обновления статистики для добавления истории.
+        Переопределение метода обновления статистики для добавления истории и полосок.
         """
-        super().update_stats()
         try:
             cpu = psutil.cpu_percent(interval=0.1)
             ram = psutil.virtual_memory()
             disk = psutil.disk_usage('C:')
+
+            self.cpu_bar.setValue(int(cpu))
+            self.ram_bar.setValue(int(ram.percent))
 
             self.stats_history.add_cpu(cpu)
             self.stats_history.add_ram(ram.percent)
@@ -673,17 +705,77 @@ class ExtendedSystemWidget(SystemWidget):
         Переопределение применения темы для расширенных элементов.
         """
         super().apply_theme()
-        text_color = self.config.get('text_color')
         font_family = self.config.get('font_family')
 
-        self.network_label.setStyleSheet(f"color: {text_color};")
+        bar_style = f"QProgressBar {{ border: 1px solid {self.theme_color}; border-radius: 2px; text-align: center; color: {self.theme_color}; background: transparent; }} QProgressBar::chunk {{ background-color: {self.theme_color}; }}"
+
+        self.cpu_bar.setStyleSheet(bar_style)
+        self.ram_bar.setStyleSheet(bar_style)
+
+        self.cpu_label.setStyleSheet(f"color: {self.theme_color};")
+        self.ram_label.setStyleSheet(f"color: {self.theme_color};")
+
+        self.network_label.setStyleSheet(f"color: {self.theme_color};")
         self.network_label.setFont(QFont(font_family, 9))
 
-        self.temp_label.setStyleSheet(f"color: {text_color};")
+        self.temp_label.setStyleSheet(f"color: {self.theme_color};")
         self.temp_label.setFont(QFont(font_family, 9))
 
-        self.history_label.setStyleSheet(f"color: {text_color};")
+        self.history_label.setStyleSheet(f"color: {self.theme_color};")
         self.history_label.setFont(QFont(font_family, 8))
+
+    def contextMenuEvent(self, event):
+        """
+        Контекстное меню по правой кнопке.
+        """
+        menu = QMenu(self)
+
+        pin_action = QAction("Закрепить/Открепить", self)
+        pin_action.triggered.connect(self.toggle_pin)
+        menu.addAction(pin_action)
+
+        theme_menu = menu.addMenu("Сменить тему")
+
+        cyan_action = QAction("Cyan", self)
+        cyan_action.triggered.connect(lambda: self.change_theme('cyan'))
+        theme_menu.addAction(cyan_action)
+
+        red_action = QAction("Red", self)
+        red_action.triggered.connect(lambda: self.change_theme('red'))
+        theme_menu.addAction(red_action)
+
+        green_action = QAction("Green", self)
+        green_action.triggered.connect(lambda: self.change_theme('green'))
+        theme_menu.addAction(green_action)
+
+        exit_action = QAction("Выход", self)
+        exit_action.triggered.connect(QApplication.quit)
+        menu.addAction(exit_action)
+
+        menu.exec_(event.globalPos())
+
+    def toggle_pin(self):
+        """
+        Переключение закрепления поверх всех окон.
+        """
+        if self.windowFlags() & Qt.WindowStaysOnTopHint:
+            self.setWindowFlags(self.windowFlags() & ~Qt.WindowStaysOnTopHint)
+        else:
+            self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
+        self.show()
+
+    def change_theme(self, theme):
+        """
+        Смена темы.
+        """
+        theme_colors = {
+            'cyan': '#00ffcc',
+            'red': '#ff0000',
+            'green': '#00ff00'
+        }
+        if theme in theme_colors:
+            self.theme_color = theme_colors[theme]
+            self.apply_theme()
 
 # Дополнительные утилитарные функции
 
