@@ -349,12 +349,12 @@ class SystemWidget(QWidget):
             if self.config.get('show_ram'):
                 ram = psutil.virtual_memory()
                 ram_gb = ram.used / (1024**3)
-                stats_text += ".1f"f"RAM: {ram.percent:.1f}% ({ram_gb:.1f} GB)\n"
+                stats_text += f"RAM: {ram.percent:.1f}% ({ram_gb:.1f} GB)\n"
 
             if self.config.get('show_disk'):
                 disk = psutil.disk_usage('C:')
                 disk_gb = disk.free / (1024**3)
-                stats_text += ".1f"f"Disk C: {disk_gb:.1f} GB free\n"
+                stats_text += f"Disk C: {disk_gb:.1f} GB free\n"
 
             if self.config.get('show_battery'):
                 battery = psutil.sensors_battery()
@@ -626,7 +626,7 @@ class ExtendedSystemWidget(SystemWidget):
         """
         try:
             sent, recv = self.network_monitor.get_network_stats()
-            self.network_label.setText(".1f".1f"f"Network: {sent:.1f} KB/s ↑ {recv:.1f} KB/s ↓")
+            self.network_label.setText(f"Network: {sent:.1f} KB/s ↑ {recv:.1f} KB/s ↓")
         except Exception as e:
             logging.error(f"Ошибка обновления сети: {e}")
 
@@ -637,7 +637,7 @@ class ExtendedSystemWidget(SystemWidget):
         try:
             temp = self.temp_monitor.get_cpu_temp()
             if temp is not None:
-                self.temp_label.setText(".1f"f"Temp: {temp:.1f}°C")
+                self.temp_label.setText(f"Temp: {temp:.1f}°C")
             else:
                 self.temp_label.setText("Temp: N/A")
         except Exception as e:
@@ -660,7 +660,7 @@ class ExtendedSystemWidget(SystemWidget):
             cpu_avg = self.stats_history.get_cpu_avg()
             ram_avg = self.stats_history.get_ram_avg()
 
-            self.history_label.setText(".1f".1f"f"Avg CPU: {cpu_avg:.1f}% | Avg RAM: {ram_avg:.1f}%")
+            self.history_label.setText(f"Avg CPU: {cpu_avg:.1f}% | Avg RAM: {ram_avg:.1f}%")
         except Exception as e:
             logging.error(f"Ошибка обновления истории: {e}")
 
@@ -689,9 +689,9 @@ def format_bytes(bytes_value):
     """
     for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
         if bytes_value < 1024.0:
-            return ".1f"f"{bytes_value:.1f} {unit}"
+            return f"{bytes_value:.1f} {unit}"
         bytes_value /= 1024.0
-    return ".1f"f"{bytes_value:.1f} PB"
+    return f"{bytes_value:.1f} PB"
 
 def get_system_info():
     """
