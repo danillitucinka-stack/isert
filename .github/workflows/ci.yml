@@ -50,4 +50,4 @@ jobs:
 
     - name: Clean up
       run: |
-        rm -f notes.txt config.json widget.log
+        Remove-Item -Path notes.txt, config.json, widget.log -ErrorAction SilentlyContinue
