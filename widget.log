@@ -1,0 +1,2 @@
+2026-05-08 21:22:16,944 - INFO - Системная информация: {'os': 'nt', 'platform': 'win32', 'python_version': '3.10.10 (tags/v3.10.10:aad5f6a, Feb  7 2023, 17:20:36) [MSC v.1929 64 bit (AMD64)]', 'cpu_count': 12, 'memory_total': 16857817088}
+2026-05-08 21:24:16,921 - INFO - Системная информация: {'os': 'nt', 'platform': 'win32', 'python_version': '3.10.10 (tags/v3.10.10:aad5f6a, Feb  7 2023, 17:20:36) [MSC v.1929 64 bit (AMD64)]', 'cpu_count': 12, 'memory_total': 16857817088}

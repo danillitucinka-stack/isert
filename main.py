@@ -3,9 +3,9 @@ import os
 import json
 import logging
 from PyQt5.QtWidgets import (
-    QApplication, QWidget, QLabel, QVBoxLayout, QTextEdit, QHBoxLayout,
-    QPushButton, QMenu, QAction, QSystemTrayIcon, QDialog, QFormLayout,
-    QComboBox, QColorDialog, QSpinBox, QCheckBox, QMessageBox
+    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTextEdit,
+    QProgressBar, QMenu, QAction, QSystemTrayIcon, QPushButton, QDialog,
+    QFormLayout, QComboBox, QColorDialog, QSpinBox, QCheckBox, QMessageBox
 )
 from PyQt5.QtCore import QTimer, Qt, QPoint, QRect, QSize, pyqtSignal
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon, QPixmap, QCursor
@@ -214,10 +214,7 @@ class SystemWidget(QWidget):
         self.init_timers()
         self.init_tray()
         self.load_position()
-        try:
-            self.apply_theme()
-        except Exception as e:
-            logging.error(f"Ошибка применения темы: {e}")
+        self.apply_theme()  # Викликаємо після створення всіх об'єктів
 
     def init_window(self):
         """
@@ -261,7 +258,6 @@ class SystemWidget(QWidget):
 
         # Подключение сигналов
         self.notes_edit.textChanged.connect(self.save_notes)
-        self.notes_edit.focusOutEvent = self.on_notes_focus_out
 
     def init_timers(self):
         """
@@ -383,7 +379,9 @@ class SystemWidget(QWidget):
             logging.error(f"Ошибка загрузки заметок: {e}")
 
     def save_notes(self):
-        # Сохранение заметок в файл
+        """
+        Сохранение заметок в файл.
+        """
         if not self.config.get('auto_save_notes'):
             return
         try:
@@ -391,11 +389,6 @@ class SystemWidget(QWidget):
                 f.write(self.notes_edit.toPlainText())
         except Exception as e:
             logging.error(f"Ошибка сохранения заметок: {e}")
-
-    def on_notes_focus_out(self, event):
-        # Автосохранение при потере фокуса
-        self.save_notes()
-        QTextEdit.focusOutEvent(self.notes_edit, event)
 
     def save_position(self):
         """
@@ -441,6 +434,7 @@ class SystemWidget(QWidget):
         Обработка закрытия виджета.
         """
         self.save_position()
+        self.save_notes()  # Автозбереження нотаток при закритті
         if self.tray_icon and self.config.get('minimize_to_tray'):
             event.ignore()
             self.hide()
@@ -462,8 +456,6 @@ class SystemWidget(QWidget):
         menu.addAction(quit_action)
 
         menu.exec_(event.globalPos())
-
-# Дополнительные классы и функции для расширения функциональности
 
 class StatsHistory:
     """
@@ -584,8 +576,6 @@ class TemperatureMonitor:
             logging.error(f"Ошибка получения температуры: {e}")
             return None
 
-# Расширение класса SystemWidget дополнительными функциями
-
 class ExtendedSystemWidget(SystemWidget):
     """
     Расширенная версия виджета с дополнительными функциями.
@@ -597,10 +587,7 @@ class ExtendedSystemWidget(SystemWidget):
         self.temp_monitor = TemperatureMonitor()
         self.init_extended_ui()
         self.init_extended_timers()
-        try:
-            self.apply_theme()
-        except Exception as e:
-            logging.error(f"Ошибка применения темы в ExtendedSystemWidget: {e}")
+        # apply_theme вже викликано в базовому __init__
 
     def init_extended_ui(self):
         """
@@ -670,6 +657,7 @@ class ExtendedSystemWidget(SystemWidget):
             self.network_label.setText(f"Network: {sent:.1f} KB/s ↑ {recv:.1f} KB/s ↓")
         except Exception as e:
             logging.error(f"Ошибка обновления сети: {e}")
+            self.network_label.setText("Network: N/A")
 
     def update_temperature(self):
         """
@@ -683,6 +671,7 @@ class ExtendedSystemWidget(SystemWidget):
                 self.temp_label.setText("Temp: N/A")
         except Exception as e:
             logging.error(f"Ошибка обновления температуры: {e}")
+            self.temp_label.setText("Temp: N/A")
 
     def update_stats(self):
         """
@@ -794,8 +783,6 @@ class ExtendedSystemWidget(SystemWidget):
             except Exception as e:
                 logging.error(f"Ошибка смены темы: {e}")
 
-# Дополнительные утилитарные функции
-
 def format_bytes(bytes_value):
     """
     Форматирование байтов в читаемый вид (KB, MB, GB).
@@ -857,8 +844,6 @@ def cleanup_old_backups(max_backups=5):
     except Exception as e:
         logging.error(f"Ошибка очистки резервных копий: {e}")
 
-# Дополнительные константы и переменные
-
 THEMES = {
     'cyberpunk': {
         'text_color': '#00ffcc',
@@ -882,8 +867,6 @@ UPDATE_INTERVALS = {
     'slow': {'clock': 2000, 'stats': 5000, 'network': 5000, 'temp': 10000}
 }
 
-# Функции для обработки ошибок
-
 def handle_exception(func):
     """
     Декоратор для обработки исключений в функциях.
@@ -896,7 +879,6 @@ def handle_exception(func):
             return None
     return wrapper
 
-# Применение декоратора к некоторым функциям
 @handle_exception
 def safe_load_config(config):
     return config.load_config()
@@ -912,8 +894,6 @@ def safe_update_clock(widget):
 @handle_exception
 def safe_update_stats(widget):
     widget.update_stats()
-
-# Дополнительные методы для класса Config
 
 class ExtendedConfig(Config):
     """
@@ -947,8 +927,6 @@ class ExtendedConfig(Config):
             theme = THEMES[theme_name]
             self.set('text_color', theme['text_color'])
             self.set('background_alpha', theme['background_alpha'])
-
-# Финальные дополнения и запуск
 
 if __name__ == "__main__":
     log_system_info()  # Логирование системной информации
