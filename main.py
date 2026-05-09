@@ -5,7 +5,8 @@ import logging
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTextEdit,
     QProgressBar, QMenu, QAction, QSystemTrayIcon, QPushButton, QDialog,
-    QFormLayout, QComboBox, QColorDialog, QSpinBox, QCheckBox, QMessageBox
+    QFormLayout, QComboBox, QColorDialog, QSpinBox, QCheckBox, QMessageBox,
+    QFrame, QGridLayout
 )
 from PyQt5.QtCore import QTimer, Qt, QPoint, QRect, QSize, pyqtSignal
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon, QPixmap, QCursor
@@ -39,7 +40,8 @@ class Config:
             'show_battery': True,
             'update_interval_clock': 1000,
             'update_interval_stats': 2000,
-            'minimize_to_tray': True
+            'minimize_to_tray': True,
+            'show_notes': True
         }
         self.config = self.load_config()
 
@@ -198,10 +200,10 @@ class SettingsDialog(QDialog):
         self.config.set('minimize_to_tray', self.minimize_tray_check.isChecked())
         self.accept()
 
-class SystemWidget(QWidget):
+class HUDWidget(QWidget):
     """
-    Основной класс виджета системы.
-    Отображает часы, заметки и статистику.
+    Основной класс виджета HUD.
+    Отображает часы, заметки и статистику в стиле HUD.
     """
     def __init__(self):
         super().__init__()
@@ -214,7 +216,7 @@ class SystemWidget(QWidget):
         self.init_timers()
         self.init_tray()
         self.load_position()
-        self.apply_theme()  # Викликаємо після створення всіх об'єктів
+        self.apply_theme()
 
     def init_window(self):
         """
@@ -222,36 +224,109 @@ class SystemWidget(QWidget):
         """
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
-        self.setFixedSize(350, 500)  # Увеличенный размер для дополнительных элементов
-        self.setWindowTitle("System Widget")
+        self.setFixedSize(400, 600)  # Увеличенный размер для HUD
+        self.setWindowTitle("HUD Widget")
 
     def init_ui(self):
         """
         Инициализация пользовательского интерфейса.
         """
-        self.layout = QVBoxLayout()
-        self.layout.setContentsMargins(15, 15, 15, 15)
-        self.setLayout(self.layout)
+        # Головний контейнер
+        self.container = QFrame(self)
+        self.container.setStyleSheet("""
+            background-color: rgba(15, 23, 42, 200);
+            border-radius: 20px;
+            border: 1px solid #00ffcc;
+        """)
+        self.container.setFixedSize(400, 600)
 
-        # Кнопка настроек
-        self.settings_button = QPushButton("⚙")
-        self.settings_button.setFixedSize(30, 30)
-        self.settings_button.setStyleSheet("background-color: rgba(0,0,0,0.3); color: #00ffcc; border: none;")
-        self.settings_button.clicked.connect(self.show_settings)
-        self.layout.addWidget(self.settings_button, alignment=Qt.AlignRight)
+        self.layout = QVBoxLayout(self.container)
+        self.layout.setContentsMargins(20, 20, 20, 20)
 
-        # Цифровые часы
+        # Зверху — годинник (великий, центрований)
         self.clock_label = QLabel("00:00:00")
+        self.clock_label.setAlignment(Qt.AlignCenter)
         self.layout.addWidget(self.clock_label)
 
-        # Поле для заметок
+        # Посередині — область статистики з QGridLayout
+        self.stats_grid = QGridLayout()
+        self.stats_grid.setHorizontalSpacing(10)
+        self.stats_grid.setVerticalSpacing(10)
+
+        # CPU
+        self.cpu_label = QLabel("CPU:")
+        self.cpu_label.setStyleSheet("color: #00ffcc;")
+        self.stats_grid.addWidget(self.cpu_label, 0, 0)
+
+        self.cpu_bar = QProgressBar()
+        self.cpu_bar.setRange(0, 100)
+        self.cpu_bar.setValue(0)
+        self.cpu_bar.setFixedHeight(10)
+        self.cpu_bar.setStyleSheet("""
+            QProgressBar {
+                border: none;
+                border-radius: 5px;
+                text-align: center;
+                background-color: #111;
+            }
+            QProgressBar::chunk {
+                background-color: #00ffcc;
+                border-radius: 5px;
+            }
+        """)
+        self.stats_grid.addWidget(self.cpu_bar, 0, 1)
+
+        self.cpu_value_label = QLabel("0%")
+        self.cpu_value_label.setStyleSheet("color: #00ffcc;")
+        self.stats_grid.addWidget(self.cpu_value_label, 0, 2)
+
+        # RAM
+        self.ram_label = QLabel("RAM:")
+        self.ram_label.setStyleSheet("color: #00ffcc;")
+        self.stats_grid.addWidget(self.ram_label, 1, 0)
+
+        self.ram_bar = QProgressBar()
+        self.ram_bar.setRange(0, 100)
+        self.ram_bar.setValue(0)
+        self.ram_bar.setFixedHeight(10)
+        self.ram_bar.setStyleSheet("""
+            QProgressBar {
+                border: none;
+                border-radius: 5px;
+                text-align: center;
+                background-color: #111;
+            }
+            QProgressBar::chunk {
+                background-color: #00ffcc;
+                border-radius: 5px;
+            }
+        """)
+        self.stats_grid.addWidget(self.ram_bar, 1, 1)
+
+        self.ram_value_label = QLabel("0%")
+        self.ram_value_label.setStyleSheet("color: #00ffcc;")
+        self.stats_grid.addWidget(self.ram_value_label, 1, 2)
+
+        self.layout.addLayout(self.stats_grid)
+
+        # Знизу — мережеві дані та нотатки
+        self.network_label = QLabel("Network: N/A")
+        self.network_label.setStyleSheet("color: #00ffcc;")
+        self.layout.addWidget(self.network_label)
+
+        self.temp_label = QLabel("Temp: N/A")
+        self.temp_label.setStyleSheet("color: #00ffcc;")
+        self.layout.addWidget(self.temp_label)
+
         self.notes_edit = QTextEdit()
         self.notes_edit.setMaximumHeight(120)
+        self.notes_edit.setStyleSheet("""
+            background-color: rgba(0, 0, 0, 0.5);
+            color: #00ffcc;
+            border: none;
+            border-radius: 10px;
+        """)
         self.layout.addWidget(self.notes_edit)
-
-        # Системные статистики
-        self.stats_label = QLabel("Инициализация...")
-        self.layout.addWidget(self.stats_label)
 
         # Загрузка заметок
         self.load_notes()
@@ -269,6 +344,12 @@ class SystemWidget(QWidget):
         self.timer_stats = QTimer()
         self.timer_stats.timeout.connect(self.update_stats)
 
+        self.timer_network = QTimer()
+        self.timer_network.timeout.connect(self.update_network)
+
+        self.timer_temp = QTimer()
+        self.timer_temp.timeout.connect(self.update_temperature)
+
         self.start_timers()
 
     def start_timers(self):
@@ -277,6 +358,8 @@ class SystemWidget(QWidget):
         """
         self.timer_clock.start(self.config.get('update_interval_clock'))
         self.timer_stats.start(self.config.get('update_interval_stats'))
+        self.timer_network.start(3000)
+        self.timer_temp.start(5000)
 
     def init_tray(self):
         """
@@ -285,7 +368,7 @@ class SystemWidget(QWidget):
         if QSystemTrayIcon.isSystemTrayAvailable():
             self.tray_icon = QSystemTrayIcon(self)
             self.tray_icon.setIcon(QIcon(QPixmap(32, 32)))  # Простая иконка
-            self.tray_icon.setToolTip("System Widget")
+            self.tray_icon.setToolTip("HUD Widget")
 
             tray_menu = QMenu()
             show_action = QAction("Показать", self)
@@ -305,26 +388,26 @@ class SystemWidget(QWidget):
 
     def apply_theme(self):
         """
-        Применение темы из конфигурации.
+        Применение темы.
         """
         font_family = self.config.get('font_family')
         text_color = self.theme_color
-        alpha = self.config.get('background_alpha')
 
         # Стиль для часов
         clock_font = QFont(font_family, self.config.get('font_size_clock'), QFont.Bold)
         self.clock_label.setFont(clock_font)
         self.clock_label.setStyleSheet(f"color: {text_color};")
 
+        # Стиль для статистики
+        stats_font = QFont(font_family, self.config.get('font_size_stats'))
+        self.cpu_label.setFont(stats_font)
+        self.ram_label.setFont(stats_font)
+        self.cpu_value_label.setFont(stats_font)
+        self.ram_value_label.setFont(stats_font)
+
         # Стиль для заметок
         notes_font = QFont(font_family, self.config.get('font_size_notes'))
         self.notes_edit.setFont(notes_font)
-        self.notes_edit.setStyleSheet(f"background-color: rgba(0, 0, 0, {alpha}); color: {text_color}; border: none;")
-
-        # Стиль для статистики
-        stats_font = QFont(font_family, self.config.get('font_size_stats'))
-        self.stats_label.setFont(stats_font)
-        self.stats_label.setStyleSheet(f"color: {text_color};")
 
     def update_clock(self):
         """
@@ -341,31 +424,47 @@ class SystemWidget(QWidget):
         Обновление системной статистики.
         """
         try:
-            stats_text = ""
-
             if self.config.get('show_cpu'):
                 cpu = psutil.cpu_percent(interval=0.1)
-                stats_text += f"CPU: {cpu:.1f}%\n"
+                self.cpu_bar.setValue(int(cpu))
+                self.cpu_value_label.setText(f"{cpu:.1f}%")
 
             if self.config.get('show_ram'):
                 ram = psutil.virtual_memory()
-                ram_gb = ram.used / (1024**3)
-                stats_text += f"RAM: {ram.percent:.1f}% ({ram_gb:.1f} GB)\n"
-
-            if self.config.get('show_disk'):
-                disk = psutil.disk_usage('C:')
-                disk_gb = disk.free / (1024**3)
-                stats_text += f"Disk C: {disk_gb:.1f} GB free\n"
-
-            if self.config.get('show_battery'):
-                battery = psutil.sensors_battery()
-                if battery:
-                    stats_text += f"Battery: {battery.percent:.1f}% {'(Charging)' if battery.power_plugged else ''}\n"
-
-            self.stats_label.setText(stats_text.strip())
+                self.ram_bar.setValue(int(ram.percent))
+                self.ram_value_label.setText(f"{ram.percent:.1f}%")
         except Exception as e:
             logging.error(f"Ошибка обновления статистики: {e}")
-            self.stats_label.setText("Ошибка получения статистики")
+
+    def update_network(self):
+        """
+        Обновление сетевой статистики.
+        """
+        try:
+            net_io = psutil.net_io_counters()
+            sent = net_io.bytes_sent / 1024 / 1024  # MB
+            recv = net_io.bytes_recv / 1024 / 1024  # MB
+            self.network_label.setText(f"Network: {sent:.1f} MB ↑ {recv:.1f} MB ↓")
+        except Exception as e:
+            logging.error(f"Ошибка обновления сети: {e}")
+            self.network_label.setText("Network: N/A")
+
+    def update_temperature(self):
+        """
+        Обновление температуры.
+        """
+        try:
+            sensors = psutil.sensors_temperatures()
+            if sensors:
+                for name, entries in sensors.items():
+                    if 'coretemp' in name or 'cpu' in name:
+                        temp = entries[0].current
+                        self.temp_label.setText(f"Temp: {temp:.1f}°C")
+                        return
+            self.temp_label.setText("Temp: N/A")
+        except Exception as e:
+            logging.error(f"Ошибка обновления температуры: {e}")
+            self.temp_label.setText("Temp: N/A")
 
     def load_notes(self):
         """
@@ -434,11 +533,11 @@ class SystemWidget(QWidget):
         Обработка закрытия виджета.
         """
         self.save_position()
-        self.save_notes()  # Автозбереження нотаток при закритті
+        self.save_notes()
         if self.tray_icon and self.config.get('minimize_to_tray'):
             event.ignore()
             self.hide()
-            self.tray_icon.showMessage("System Widget", "Виджет свернут в трей", QSystemTrayIcon.Information, 2000)
+            self.tray_icon.showMessage("HUD Widget", "Виджет свернут в трей", QSystemTrayIcon.Information, 2000)
         else:
             event.accept()
 
@@ -447,504 +546,50 @@ class SystemWidget(QWidget):
         Обработка контекстного меню по правому клику.
         """
         menu = QMenu(self)
-        settings_action = QAction("Настройки", self)
-        settings_action.triggered.connect(self.show_settings)
-        menu.addAction(settings_action)
 
-        quit_action = QAction("Выход", self)
+        notes_action = QAction("Сховати/Показати нотатки", self)
+        notes_action.triggered.connect(self.toggle_notes)
+        menu.addAction(notes_action)
+
+        transparency_menu = menu.addMenu("Змінити прозорість")
+        for alpha in [0.3, 0.5, 0.7, 0.9]:
+            action = QAction(f"{int(alpha*100)}%", self)
+            action.triggered.connect(lambda checked, a=alpha: self.set_transparency(a))
+            transparency_menu.addAction(action)
+
+        quit_action = QAction("Закрити", self)
         quit_action.triggered.connect(QApplication.quit)
         menu.addAction(quit_action)
 
         menu.exec_(event.globalPos())
 
-class StatsHistory:
-    """
-    Класс для хранения истории статистических данных.
-    Позволяет отслеживать изменения во времени.
-    """
-    def __init__(self, max_points=50):
-        self.max_points = max_points
-        self.cpu_history = []
-        self.ram_history = []
-        self.disk_history = []
-
-    def add_cpu(self, value):
+    def toggle_notes(self):
         """
-        Добавление значения CPU в историю.
+        Переключение видимости нотаток.
         """
-        self.cpu_history.append(value)
-        if len(self.cpu_history) > self.max_points:
-            self.cpu_history.pop(0)
-
-    def add_ram(self, value):
-        """
-        Добавление значения RAM в историю.
-        """
-        self.ram_history.append(value)
-        if len(self.ram_history) > self.max_points:
-            self.ram_history.pop(0)
-
-    def add_disk(self, value):
-        """
-        Добавление значения диска в историю.
-        """
-        self.disk_history.append(value)
-        if len(self.disk_history) > self.max_points:
-            self.disk_history.pop(0)
-
-    def get_cpu_avg(self):
-        """
-        Получение среднего значения CPU за последние точки.
-        """
-        if self.cpu_history:
-            return sum(self.cpu_history) / len(self.cpu_history)
-        return 0
-
-    def get_ram_avg(self):
-        """
-        Получение среднего значения RAM за последние точки.
-        """
-        if self.ram_history:
-            return sum(self.ram_history) / len(self.ram_history)
-        return 0
-
-    def get_disk_avg(self):
-        """
-        Получение среднего значения диска за последние точки.
-        """
-        if self.disk_history:
-            return sum(self.disk_history) / len(self.disk_history)
-        return 0
-
-class NetworkMonitor:
-    """
-    Класс для мониторинга сетевой активности.
-    """
-    def __init__(self):
-        self.last_bytes_sent = 0
-        self.last_bytes_recv = 0
-        self.last_time = datetime.datetime.now()
-
-    def get_network_stats(self):
-        """
-        Получение статистики сети: скорость отправки и приема.
-        """
-        try:
-            net_io = psutil.net_io_counters()
-            current_time = datetime.datetime.now()
-            time_diff = (current_time - self.last_time).total_seconds()
-
-            if time_diff > 0:
-                sent_speed = (net_io.bytes_sent - self.last_bytes_sent) / time_diff / 1024  # KB/s
-                recv_speed = (net_io.bytes_recv - self.last_bytes_recv) / time_diff / 1024  # KB/s
-            else:
-                sent_speed = 0
-                recv_speed = 0
-
-            self.last_bytes_sent = net_io.bytes_sent
-            self.last_bytes_recv = net_io.bytes_recv
-            self.last_time = current_time
-
-            return sent_speed, recv_speed
-        except Exception as e:
-            logging.error(f"Ошибка получения сетевой статистики: {e}")
-            return 0, 0
-
-class TemperatureMonitor:
-    """
-    Класс для мониторинга температуры системы.
-    """
-    def __init__(self):
-        try:
-            self.sensors = psutil.sensors_temperatures() if hasattr(psutil, 'sensors_temperatures') else {}
-        except Exception as e:
-            logging.error(f"Ошибка инициализации датчиков температуры: {e}")
-            self.sensors = {}
-
-    def get_cpu_temp(self):
-        """
-        Получение температуры CPU.
-        """
-        try:
-            if 'coretemp' in self.sensors:
-                return self.sensors['coretemp'][0].current
-            elif 'cpu_thermal' in self.sensors:
-                return self.sensors['cpu_thermal'][0].current
-            else:
-                return None
-        except Exception as e:
-            logging.error(f"Ошибка получения температуры: {e}")
-            return None
-
-class ExtendedSystemWidget(SystemWidget):
-    """
-    Расширенная версия виджета с дополнительными функциями.
-    """
-    def __init__(self):
-        super().__init__()
-        self.stats_history = StatsHistory()
-        self.network_monitor = NetworkMonitor()
-        self.temp_monitor = TemperatureMonitor()
-        self.init_extended_ui()
-        self.init_extended_timers()
-        # apply_theme вже викликано в базовому __init__
-
-    def init_extended_ui(self):
-        """
-        Инициализация расширенного интерфейса.
-        """
-        # Полоски для CPU и RAM
-        self.cpu_label = QLabel("CPU:")
-        self.cpu_label.setFont(QFont(self.config.get('font_family'), 9))
-        self.layout.addWidget(self.cpu_label)
-
-        self.cpu_bar = QProgressBar()
-        self.cpu_bar.setRange(0, 100)
-        self.cpu_bar.setValue(0)
-        self.cpu_bar.setFixedHeight(15)
-        self.layout.addWidget(self.cpu_bar)
-
-        self.ram_label = QLabel("RAM:")
-        self.ram_label.setFont(QFont(self.config.get('font_family'), 9))
-        self.layout.addWidget(self.ram_label)
-
-        self.ram_bar = QProgressBar()
-        self.ram_bar.setRange(0, 100)
-        self.ram_bar.setValue(0)
-        self.ram_bar.setFixedHeight(15)
-        self.layout.addWidget(self.ram_bar)
-
-        # Добавление метки для сети
-        self.network_label = QLabel("Network: 0 KB/s ↓ 0 KB/s ↑")
-        self.network_label.setFont(QFont(self.config.get('font_family'), 9))
-        self.network_label.setStyleSheet(f"color: {self.theme_color};")
-        self.layout.addWidget(self.network_label)
-
-        # Добавление метки для температуры
-        self.temp_label = QLabel("Temp: N/A")
-        self.temp_label.setFont(QFont(self.config.get('font_family'), 9))
-        self.temp_label.setStyleSheet(f"color: {self.theme_color};")
-        self.layout.addWidget(self.temp_label)
-
-        # Добавление метки для истории
-        self.history_label = QLabel("Avg CPU: 0% | Avg RAM: 0%")
-        self.history_label.setFont(QFont(self.config.get('font_family'), 8))
-        self.history_label.setStyleSheet(f"color: {self.theme_color};")
-        self.layout.addWidget(self.history_label)
-
-    def init_extended_timers(self):
-        """
-        Инициализация дополнительных таймеров.
-        """
-        self.timer_network = QTimer()
-        self.timer_network.timeout.connect(self.update_network)
-        self.timer_network.start(3000)  # Каждые 3 секунды
-
-        self.timer_temp = QTimer()
-        self.timer_temp.timeout.connect(self.update_temperature)
-        self.timer_temp.start(5000)  # Каждые 5 секунд
-
-        self.timer_notes_save = QTimer()
-        self.timer_notes_save.timeout.connect(self.save_notes)
-        self.timer_notes_save.start(30000)  # Автосохранение каждые 30 секунд
-
-    def update_network(self):
-        """
-        Обновление сетевой статистики.
-        """
-        try:
-            sent, recv = self.network_monitor.get_network_stats()
-            self.network_label.setText(f"Network: {sent:.1f} KB/s ↑ {recv:.1f} KB/s ↓")
-        except Exception as e:
-            logging.error(f"Ошибка обновления сети: {e}")
-            self.network_label.setText("Network: N/A")
-
-    def update_temperature(self):
-        """
-        Обновление температуры.
-        """
-        try:
-            temp = self.temp_monitor.get_cpu_temp()
-            if temp is not None:
-                self.temp_label.setText(f"Temp: {temp:.1f}°C")
-            else:
-                self.temp_label.setText("Temp: N/A")
-        except Exception as e:
-            logging.error(f"Ошибка обновления температуры: {e}")
-            self.temp_label.setText("Temp: N/A")
-
-    def update_stats(self):
-        """
-        Переопределение метода обновления статистики для добавления истории и полосок.
-        """
-        try:
-            cpu = psutil.cpu_percent(interval=0.1)
-            ram = psutil.virtual_memory()
-            disk = psutil.disk_usage('C:')
-
-            self.cpu_bar.setValue(int(cpu))
-            self.ram_bar.setValue(int(ram.percent))
-
-            self.stats_history.add_cpu(cpu)
-            self.stats_history.add_ram(ram.percent)
-            self.stats_history.add_disk(disk.free / (1024**3))
-
-            cpu_avg = self.stats_history.get_cpu_avg()
-            ram_avg = self.stats_history.get_ram_avg()
-
-            self.history_label.setText(f"Avg CPU: {cpu_avg:.1f}% | Avg RAM: {ram_avg:.1f}%")
-        except Exception as e:
-            logging.error(f"Ошибка обновления истории: {e}")
-
-    def apply_theme(self):
-        """
-        Переопределение применения темы для расширенных элементов.
-        """
-        super().apply_theme()
-        font_family = self.config.get('font_family')
-
-        bar_style = f"QProgressBar {{ border: 1px solid {self.theme_color}; border-radius: 2px; text-align: center; color: {self.theme_color}; background: transparent; }} QProgressBar::chunk {{ background-color: {self.theme_color}; }}"
-
-        if hasattr(self, 'cpu_bar'):
-            self.cpu_bar.setStyleSheet(bar_style)
-        if hasattr(self, 'ram_bar'):
-            self.ram_bar.setStyleSheet(bar_style)
-
-        if hasattr(self, 'cpu_label'):
-            self.cpu_label.setStyleSheet(f"color: {self.theme_color};")
-        if hasattr(self, 'ram_label'):
-            self.ram_label.setStyleSheet(f"color: {self.theme_color};")
-
-        if hasattr(self, 'network_label'):
-            self.network_label.setStyleSheet(f"color: {self.theme_color};")
-            self.network_label.setFont(QFont(font_family, 9))
-
-        if hasattr(self, 'temp_label'):
-            self.temp_label.setStyleSheet(f"color: {self.theme_color};")
-            self.temp_label.setFont(QFont(font_family, 9))
-
-        if hasattr(self, 'history_label'):
-            self.history_label.setStyleSheet(f"color: {self.theme_color};")
-            self.history_label.setFont(QFont(font_family, 8))
-
-    def contextMenuEvent(self, event):
-        """
-        Контекстное меню по правой кнопке.
-        """
-        menu = QMenu(self)
-
-        pin_action = QAction("Закрепить/Открепить", self)
-        pin_action.triggered.connect(self.toggle_pin)
-        menu.addAction(pin_action)
-
-        theme_menu = menu.addMenu("Сменить тему")
-
-        cyan_action = QAction("Cyan", self)
-        cyan_action.triggered.connect(lambda: self.change_theme('cyan'))
-        theme_menu.addAction(cyan_action)
-
-        red_action = QAction("Red", self)
-        red_action.triggered.connect(lambda: self.change_theme('red'))
-        theme_menu.addAction(red_action)
-
-        green_action = QAction("Green", self)
-        green_action.triggered.connect(lambda: self.change_theme('green'))
-        theme_menu.addAction(green_action)
-
-        exit_action = QAction("Выход", self)
-        exit_action.triggered.connect(QApplication.quit)
-        menu.addAction(exit_action)
-
-        menu.exec_(event.globalPos())
-
-    def toggle_pin(self):
-        """
-        Переключение закрепления поверх всех окон.
-        """
-        if self.windowFlags() & Qt.WindowStaysOnTopHint:
-            self.setWindowFlags(self.windowFlags() & ~Qt.WindowStaysOnTopHint)
+        if self.notes_edit.isVisible():
+            self.notes_edit.hide()
+            self.config.set('show_notes', False)
         else:
-            self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
-        self.show()
+            self.notes_edit.show()
+            self.config.set('show_notes', True)
 
-    def change_theme(self, theme):
+    def set_transparency(self, alpha):
         """
-        Смена темы.
+        Установка прозрачности контейнера.
         """
-        theme_colors = {
-            'cyan': '#00ffcc',
-            'red': '#ff0000',
-            'green': '#00ff00'
-        }
-        if theme in theme_colors:
-            self.theme_color = theme_colors[theme]
-            try:
-                self.apply_theme()
-            except Exception as e:
-                logging.error(f"Ошибка смены темы: {e}")
-
-def format_bytes(bytes_value):
-    """
-    Форматирование байтов в читаемый вид (KB, MB, GB).
-    """
-    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-        if bytes_value < 1024.0:
-            return f"{bytes_value:.1f} {unit}"
-        bytes_value /= 1024.0
-    return f"{bytes_value:.1f} PB"
-
-def get_system_info():
-    """
-    Получение общей информации о системе.
-    """
-    try:
-        return {
-            'os': os.name,
-            'platform': sys.platform,
-            'python_version': sys.version,
-            'cpu_count': psutil.cpu_count(),
-            'memory_total': psutil.virtual_memory().total
-        }
-    except Exception as e:
-        logging.error(f"Ошибка получения системной информации: {e}")
-        return {}
-
-def log_system_info():
-    """
-    Логирование системной информации при запуске.
-    """
-    info = get_system_info()
-    logging.info(f"Системная информация: {info}")
-
-def create_backup_notes():
-    """
-    Создание резервной копии заметок.
-    """
-    try:
-        if os.path.exists("notes.txt"):
-            backup_name = f"notes_backup_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
-            with open("notes.txt", "r", encoding="utf-8") as src:
-                with open(backup_name, "w", encoding="utf-8") as dst:
-                    dst.write(src.read())
-            logging.info(f"Резервная копия заметок создана: {backup_name}")
-    except Exception as e:
-        logging.error(f"Ошибка создания резервной копии: {e}")
-
-def cleanup_old_backups(max_backups=5):
-    """
-    Очистка старых резервных копий заметок.
-    """
-    try:
-        backups = [f for f in os.listdir('.') if f.startswith('notes_backup_') and f.endswith('.txt')]
-        backups.sort(reverse=True)
-        if len(backups) > max_backups:
-            for old_backup in backups[max_backups:]:
-                os.remove(old_backup)
-                logging.info(f"Удалена старая резервная копия: {old_backup}")
-    except Exception as e:
-        logging.error(f"Ошибка очистки резервных копий: {e}")
-
-THEMES = {
-    'cyberpunk': {
-        'text_color': '#00ffcc',
-        'background_alpha': 0.5
-    },
-    'minimalist': {
-        'text_color': '#ffffff',
-        'background_alpha': 0.3
-    },
-    'dark': {
-        'text_color': '#ff6600',
-        'background_alpha': 0.7
-    }
-}
-
-DEFAULT_FONTS = ['Consolas', 'Segoe UI Semibold', 'Arial', 'Courier New']
-
-UPDATE_INTERVALS = {
-    'fast': {'clock': 500, 'stats': 1000, 'network': 2000, 'temp': 3000},
-    'normal': {'clock': 1000, 'stats': 2000, 'network': 3000, 'temp': 5000},
-    'slow': {'clock': 2000, 'stats': 5000, 'network': 5000, 'temp': 10000}
-}
-
-def handle_exception(func):
-    """
-    Декоратор для обработки исключений в функциях.
-    """
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except Exception as e:
-            logging.error(f"Ошибка в функции {func.__name__}: {e}")
-            return None
-    return wrapper
-
-@handle_exception
-def safe_load_config(config):
-    return config.load_config()
-
-@handle_exception
-def safe_save_config(config):
-    config.save_config()
-
-@handle_exception
-def safe_update_clock(widget):
-    widget.update_clock()
-
-@handle_exception
-def safe_update_stats(widget):
-    widget.update_stats()
-
-class ExtendedConfig(Config):
-    """
-    Расширенная версия конфигурации с дополнительными настройками.
-    """
-    def __init__(self):
-        super().__init__()
-        self.extended_defaults = {
-            'show_network': True,
-            'show_temperature': True,
-            'show_history': True,
-            'backup_notes': True,
-            'max_backups': 5,
-            'update_mode': 'normal'
-        }
-        self.default_config.update(self.extended_defaults)
-        self.config = self.load_config()
-
-    def get_update_intervals(self):
-        """
-        Получение интервалов обновления на основе режима.
-        """
-        mode = self.get('update_mode')
-        return UPDATE_INTERVALS.get(mode, UPDATE_INTERVALS['normal'])
-
-    def apply_theme_settings(self, theme_name):
-        """
-        Применение настроек темы.
-        """
-        if theme_name in THEMES:
-            theme = THEMES[theme_name]
-            self.set('text_color', theme['text_color'])
-            self.set('background_alpha', theme['background_alpha'])
+        self.container.setStyleSheet(f"""
+            background-color: rgba(15, 23, 42, {int(alpha*255)});
+            border-radius: 20px;
+            border: 1px solid #00ffcc;
+        """)
+        self.config.set('background_alpha', alpha)
 
 if __name__ == "__main__":
-    log_system_info()  # Логирование системной информации
-    create_backup_notes()  # Создание резервной копии заметок
-    cleanup_old_backups()  # Очистка старых резервных копий
-
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
 
-    # Использование расширенного виджета
-    widget = ExtendedSystemWidget()
+    widget = HUDWidget()
     widget.show()
-
-    # Обработка сигналов приложения
-    def on_app_quit():
-        logging.info("Приложение завершается")
-        create_backup_notes()
-
-    app.aboutToQuit.connect(on_app_quit)
 
     sys.exit(app.exec_())
