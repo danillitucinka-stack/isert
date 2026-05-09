@@ -200,6 +200,125 @@ class SettingsDialog(QDialog):
         self.config.set('minimize_to_tray', self.minimize_tray_check.isChecked())
         self.accept()
 
+class StatsHistory:
+    """
+    Класс для хранения истории статистических данных.
+    Позволяет отслеживать изменения во времени.
+    """
+    def __init__(self, max_points=50):
+        self.max_points = max_points
+        self.cpu_history = []
+        self.ram_history = []
+        self.disk_history = []
+
+    def add_cpu(self, value):
+        """
+        Добавление значения CPU в историю.
+        """
+        self.cpu_history.append(value)
+        if len(self.cpu_history) > self.max_points:
+            self.cpu_history.pop(0)
+
+    def add_ram(self, value):
+        """
+        Добавление значения RAM в историю.
+        """
+        self.ram_history.append(value)
+        if len(self.ram_history) > self.max_points:
+            self.ram_history.pop(0)
+
+    def add_disk(self, value):
+        """
+        Добавление значения диска в историю.
+        """
+        self.disk_history.append(value)
+        if len(self.disk_history) > self.max_points:
+            self.disk_history.pop(0)
+
+    def get_cpu_avg(self):
+        """
+        Получение среднего значения CPU за последние точки.
+        """
+        if self.cpu_history:
+            return sum(self.cpu_history) / len(self.cpu_history)
+        return 0
+
+    def get_ram_avg(self):
+        """
+        Получение среднего значения RAM за последние точки.
+        """
+        if self.ram_history:
+            return sum(self.ram_history) / len(self.ram_history)
+        return 0
+
+    def get_disk_avg(self):
+        """
+        Получение среднего значения диска за последние точки.
+        """
+        if self.disk_history:
+            return sum(self.disk_history) / len(self.disk_history)
+        return 0
+
+class NetworkMonitor:
+    """
+    Класс для мониторинга сетевой активности.
+    """
+    def __init__(self):
+        self.last_bytes_sent = 0
+        self.last_bytes_recv = 0
+        self.last_time = datetime.datetime.now()
+
+    def get_network_stats(self):
+        """
+        Получение статистики сети: скорость отправки и приема.
+        """
+        try:
+            net_io = psutil.net_io_counters()
+            current_time = datetime.datetime.now()
+            time_diff = (current_time - self.last_time).total_seconds()
+
+            if time_diff > 0:
+                sent_speed = (net_io.bytes_sent - self.last_bytes_sent) / time_diff / 1024  # KB/s
+                recv_speed = (net_io.bytes_recv - self.last_bytes_recv) / time_diff / 1024  # KB/s
+            else:
+                sent_speed = 0
+                recv_speed = 0
+
+            self.last_bytes_sent = net_io.bytes_sent
+            self.last_bytes_recv = net_io.bytes_recv
+            self.last_time = current_time
+
+            return sent_speed, recv_speed
+        except Exception as e:
+            logging.error(f"Ошибка получения сетевой статистики: {e}")
+            return 0, 0
+
+class TemperatureMonitor:
+    """
+    Класс для мониторинга температуры системы.
+    """
+    def __init__(self):
+        try:
+            self.sensors = psutil.sensors_temperatures() if hasattr(psutil, 'sensors_temperatures') else {}
+        except Exception as e:
+            logging.error(f"Ошибка инициализации датчиков температуры: {e}")
+            self.sensors = {}
+
+    def get_cpu_temp(self):
+        """
+        Получение температуры CPU.
+        """
+        try:
+            if 'coretemp' in self.sensors:
+                return self.sensors['coretemp'][0].current
+            elif 'cpu_thermal' in self.sensors:
+                return self.sensors['cpu_thermal'][0].current
+            else:
+                return None
+        except Exception as e:
+            logging.error(f"Ошибка получения температуры: {e}")
+            return None
+
 class HUDWidget(QWidget):
     """
     Основной класс виджета HUD.
